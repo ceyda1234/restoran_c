@@ -1,0 +1,221 @@
+#include "musteri.h"
+#include "restoran.h"
+#include "mutfak.h"
+
+
+int Musteri_islemleri();
+int Restoran_islemleri();
+int Yemek_islemleri();
+int restoran_analiz();
+int Mutfak_islemleri();
+int ana_menu();
+
+
+int Musteri_islemleri() {
+    int secim;
+    printf("Musteri Islemleri\n");
+    printf("1. Siparis Ekle\n");
+    printf("2. Siparis Sorgula\n");
+    printf("3. Siparis Listele\n");
+    printf("4. Geri Don\n");
+    printf("Seciminizi girin: ");
+    scanf("%d", &secim);
+
+    switch (secim) {
+        case 1:
+            siparis_ekle();
+            Musteri_islemleri();
+            break;
+        case 2:
+            aktifSiparisiGoster();
+            Musteri_islemleri();
+            break;
+        case 3:
+            siparis_listele();
+            Musteri_islemleri();
+            break;
+            
+        case 4:
+            return ana_menu();
+        default:
+          printf("Gecersiz secim.\n");
+          break;
+    }
+}
+
+ int Restoran_islemleri()
+    {
+        int secim;
+        printf("Restoran Islemleri\n");
+        printf("1. Yemek Islemleri\n");
+        printf("2. Siparis Onay/Red\n");
+        printf("3. Gunluk Rapor\n");
+        printf("4. Restoran Analiz\n");
+        printf("5. Asci Ekle\n");
+        printf("6. Geri Don\n");
+        printf("Seciminizi girin: ");
+        scanf("%d", &secim);
+        
+        switch(secim) {
+            case 1:
+                Yemek_islemleri();
+                Restoran_islemleri();
+                break;
+            case 2:
+                siparis_onayRed();
+                Restoran_islemleri();
+                break;
+            case 3:
+                gunluk_rapor();
+                Restoran_islemleri();
+                break;
+            case 4:
+                restoran_analiz();
+                Restoran_islemleri();
+                break;
+            case 5:
+                asci_ekle();
+                Restoran_islemleri();
+                break;
+            case 6:
+                return ana_menu();
+            default:
+                printf("Gecersiz secim\n");
+                break;
+        }
+    }
+
+int Yemek_islemleri()
+{
+
+    int secim;
+    printf("Yemek Islemleri\n");
+    printf("1. Yemek Ekle\n");
+    printf("2. Yemek Guncelle\n");
+    printf("3. Yemek Sil\n");
+    printf("4. Geri Don\n");
+    printf("Seciminizi girin: ");
+    scanf("%d", &secim);
+    
+    switch(secim) {
+        case 1:
+            yemek_ekle();
+            Yemek_islemleri();
+            break;
+        case 2:
+            yemek_guncelle();
+            Yemek_islemleri();
+            break;
+        case 3:
+            yemek_sil();
+            Yemek_islemleri();
+            break;
+        case 4:
+            return Restoran_islemleri();
+            break;
+        default:
+            printf("Gecersiz secim\n");
+            break;
+    }
+}
+
+int restoran_analiz() {
+    int secim;
+    printf("Restoran Analiz Menusu\n");
+    printf("1. Gunluk Kazanc Hesaplama\n");
+    printf("2. Aylik Kazanc Hesaplama\n");
+    printf("3. Belirli Tarih Araliginda Kazanc Hesaplama\n");
+    printf("4. En Cok Siparis Veren Kullanici\n");
+    printf("5. En Cok Tuketilen Yemek\n");
+    printf("6. Geri Don\n");
+    printf("Seciminizi yapin: ");
+    scanf("%d", &secim);
+
+    switch (secim) {
+        case 1:
+            gunluk_kazanc_hesaplama();
+            restoran_analiz();
+            break;
+        case 2:
+            aylik_kazanc_hesaplama();
+            restoran_analiz();
+            break;
+        case 3:
+            kazanc_hesaplama();
+            restoran_analiz();
+            break;
+        case 4:
+            en_cok_siparis_veren_kullanici();
+            restoran_analiz();
+            break;
+        case 5 :
+            en_cok_tuketilen_yemek();
+            restoran_analiz();
+            break;
+        case 6:
+            return Restoran_islemleri();
+            break;
+
+        default:
+            printf("Gecersiz secim.\n");
+            break;
+    }
+}
+
+
+int Mutfak_islemleri() {
+    int secim;
+    printf("Mutfak Islemleri\n");
+    printf("1. Siparisleri Isle\n");
+    printf("2. Geri Don\n");
+    printf("Seciminizi girin:");
+    scanf("%d", &secim);
+
+    switch (secim) {
+        case 1:
+            siparisleri_isle();
+            Mutfak_islemleri();
+            break;
+        case 2:
+            return ana_menu();
+            break;
+        default:
+            printf("Gecersiz secim.\n");
+            break;
+    }
+}
+int ana_menu() {
+    int secim;
+    printf("Ana Menu\n");
+    printf("1. Musteri Islemleri\n");
+    printf("2. Restoran Islemleri\n");
+    printf("3. Mutfak Islemleri\n");
+    printf("4. Cikis\n");
+    printf("Seciminizi girin: ");
+    scanf("%d", &secim);
+
+    switch (secim) {
+        case 1:
+            Musteri_islemleri();
+            break;
+        case 2:
+            Restoran_islemleri();
+            break;
+        case 3:
+            Mutfak_islemleri();
+            break;
+        case 4:
+            return 0;
+        default:
+            printf("Gecersiz secim\n");
+            break;
+    }
+}
+int main()
+{
+    ana_menu();
+    return 0;
+}
+
+
+

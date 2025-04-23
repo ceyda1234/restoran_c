@@ -1,0 +1,201 @@
+#ifndef MUTFAK_H
+#define MUTFAK_H
+
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
+
+#define MAX_LINE 256
+
+void siparis_zamanlari_ekle();
+char* bos_asci_bul();
+int yemek_hazirlik_suresi(const char *yemek_adi);
+void siparisleri_isle();
+
+void siparis_zamanlari_ekle() {
+    FILE *siparis_dosya = fopen("siparis.txt", "r"); //siparis.txt dosyasini ac
+    if (siparis_dosya == NULL) {
+        printf("siparis.txt dosyasini acma hatasi!\n");
+        return;
+    }
+
+    FILE *yemek_dosya = fopen("yemekler.txt", "r");
+    if (yemek_dosya == NULL) {
+        printf("yemekler.txt dosyasini acma hatasi!\n");
+        fclose(siparis_dosya);
+        return;
+    }
+
+    FILE *gecici_dosya = fopen("gecici_siparisler_listesi.txt", "w"); //gecici_siparisler_listesi.txt dosyasini olustur ve ac
+    if (gecici_dosya == NULL) {
+        printf("Gecici dosya olusturma hatasi!\n");
+        fclose(siparis_dosya);
+        fclose(yemek_dosya);
+        return;
+    }
+    
+
+    char siparis_line[200];
+    char yemek_line[200];
+    char siparis_no[10], yemek_adi[50], fiyat[20], musteri[50], onay_durumu[20];
+    int hazirlik_suresi = 0;
+
+    while (fgets(siparis_line, sizeof(siparis_line), siparis_dosya)) {
+        sscanf(siparis_line, "%s :: %[^::] :: %[^::] :: %[^::] :: %s", siparis_no, yemek_adi, fiyat, musteri, onay_durumu); //siparis-line'dan verileri al
+
+        if (strcmp(onay_durumu, "onay") == 0) { //onay durumu=onay ise
+            rewind(yemek_dosya); 
+            while (fgets(yemek_line, sizeof(yemek_line), yemek_dosya)) {
+                char yemek_no[10], y_adi[50], y_fiyat[20], y_sure[20], y_durum[20];
+                sscanf(yemek_line, "%s :: %[^::] :: %[^::] :: %[^::] :: %s", yemek_no, y_adi, y_fiyat, y_sure, y_durum);
+
+                if (strcmp(yemek_adi, y_adi) == 0) { //yemek_adi ve y_adi ayni ise
+                    sscanf(y_sure, "%d dk", &hazirlik_suresi);
+                    break;
+                }
+            }
+
+            time_t simdi = time(NULL);
+            struct tm *simdiki_zaman = localtime(&simdi);
+            char siparis_zamani[20];
+            strftime(siparis_zamani, sizeof(siparis_zamani), "%Y.%m.%d %H:%M:%S", simdiki_zaman); //siparis zamanina simdiki zamani yaz
+
+            simdiki_zaman->tm_min += hazirlik_suresi;
+            mktime(simdiki_zaman);
+            char hazir_zamani[20];
+            strftime(hazir_zamani, sizeof(hazir_zamani), "%Y.%m.%d %H:%M:%S", simdiki_zaman);
+
+            siparis_line[strcspn(siparis_line, "\n")] = 0; //newline karakterini sil
+            fprintf(gecici_dosya, "%s :: Siparis Zamani: %s :: Hazir Olma Zamani: %s\n", siparis_line, siparis_zamani, hazir_zamani);
+        } else {
+            fprintf(gecici_dosya, "%s", siparis_line);
+        }
+    }
+
+    fclose(siparis_dosya);
+    fclose(yemek_dosya);
+    fclose(gecici_dosya);
+    remove("siparis.txt"); //siparis.txt dosyasini sil
+    rename("gecici_siparisler_listesi.txt", "siparis.txt");
+    printf("Siparis zamanlari eklendi.\n");
+}
+
+char* bos_asci_bul() {
+    static char asci[50];  // Asci ismi için yeterli genislikte olmali
+    FILE *asci_dosya = fopen("asci.txt", "r+");
+    if (asci_dosya == NULL) {
+        printf("asci.txt dosyasini acma hatasi!\n");
+        return NULL;
+    }
+
+    FILE *temp_dosya = fopen("temp_asci.txt", "w");
+    if (temp_dosya == NULL) {
+        printf("Gecici asci dosyasi olusturma hatasi!\n");
+        fclose(asci_dosya);
+        return NULL;
+    }
+
+    char line[MAX_LINE];
+    char *bos_asci = NULL;
+
+    while (fgets(line, sizeof(line), asci_dosya)) { //asci_dosya'dan satir oku
+        char su_anki_asci[50];
+        sscanf(line, "%s", su_anki_asci);
+        if (strchr(line, ':') == NULL && bos_asci == NULL) {  // Eğer ':' bulunmuyorsa, asci bostur ve ilk bos asciyi bul
+            bos_asci = strdup(su_anki_asci);
+            fprintf(temp_dosya, "%s :: Dolu\n", su_anki_asci);
+        } else {
+            fprintf(temp_dosya, "%s", line);
+        }
+    }
+
+    fclose(asci_dosya);
+    fclose(temp_dosya);
+
+    // Orijinal dosyayı sil ve gecici dosyayi yeniden adlandir
+    remove("asci.txt");
+    rename("temp_asci.txt", "asci.txt");
+
+    return bos_asci;
+}
+
+
+int yemek_hazirlik_suresi(const char *yemek_adi) {
+    FILE *yemekler_dosya = fopen("yemekler.txt", "r");
+    if (yemekler_dosya == NULL) {
+        printf("yemekler.txt dosyasini acma hatasi!\n");
+        return -1;
+    }
+
+    char line[MAX_LINE], adi[50];
+    int sure = -1;
+    while (fgets(line, sizeof(line), yemekler_dosya)) {
+        sscanf(line, "%d :: %[^:] :: %[^:] :: %d", adi, &sure);
+        if (strcmp(adi, yemek_adi) == 0) {
+            fclose(yemekler_dosya);
+            return sure;
+        }
+    }
+
+    fclose(yemekler_dosya);
+    return -1;
+}
+
+void siparisleri_isle() {
+    FILE *siparis_dosya = fopen("siparis.txt", "r");
+    if (siparis_dosya == NULL) {
+        printf("siparis.txt dosyasini acma hatasi!\n");
+        return;
+    }
+
+    FILE *temp_dosya = fopen("temp.txt", "w");
+    if (temp_dosya == NULL) {
+        printf("Gecici dosya olusturma hatasi!\n");
+        fclose(siparis_dosya);
+        return;
+    }
+
+    char line[MAX_LINE], siparis_durumu[10], yemek_adi[50];
+    while (fgets(line, sizeof(line), siparis_dosya)) {
+        sscanf(line, "%d :: %[^:] :: %[^:] :: %*[^:] :: %[^:]", yemek_adi, siparis_durumu);
+
+        // Yeni satir karakterini kaldir
+        siparis_durumu[strcspn(siparis_durumu, "\n")] = '\0';
+
+        if (strcmp(siparis_durumu, "onay") == 0) {
+            char *bos_asci = bos_asci_bul();
+            if (bos_asci != NULL) {
+                int hazirlik_suresi = yemek_hazirlik_suresi(yemek_adi);
+                if (hazirlik_suresi != -1) {
+                    time_t simdi = time(NULL);
+                    struct tm *tm_info = localtime(&simdi);
+                    char siparis_zamani[30], hazir_olma_zamani[30];
+                    strftime(siparis_zamani, 30, "%Y.%m.%d %H:%M:%S", tm_info); //siparis zamanina simdiki zamani yaz
+                    tm_info->tm_min += hazirlik_suresi;
+                    mktime(tm_info); // zamani normalize et
+                    strftime(hazir_olma_zamani, 30, "%Y.%m.%d %H:%M:%S", tm_info);
+                    line[strcspn(line, "\n")] = 0; // (\n) newline karakterini sil
+                    fprintf(temp_dosya, "%s :: Siparis Zamani- %s :: Hazir Olma Zamani- %s :: Asci: %s\n",
+                            line, siparis_zamani, hazir_olma_zamani, bos_asci);
+                } else {
+                    fprintf(temp_dosya, "%s", line);
+                }
+            } else {
+                fprintf(temp_dosya, "%s", line);
+                printf("Bos asci bulunamadi.\n");
+            }
+        } else {
+            fprintf(temp_dosya, "%s", line);
+        }
+    }
+
+    fclose(siparis_dosya);
+    fclose(temp_dosya);
+    remove("siparis.txt");
+    rename("temp.txt", "siparis.txt");
+    printf("Siparis zamanlari ve asci bilgileri eklendi.\n");
+}
+
+#endif // MUTFAK_H
+
+

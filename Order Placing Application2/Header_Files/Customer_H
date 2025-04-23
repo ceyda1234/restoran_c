@@ -1,0 +1,317 @@
+#ifndef MUSTERI_H
+#define MUSTERI_H
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <errno.h>
+
+#define MAX_LEN_a 100
+#define MAX_YEMEKLER 100
+#define MAX_UZUNLUK 256
+#define MAKS_SATIR_UZUNLUGU 200
+#define DOSYA_ADI "siparis.txt"
+
+char yemekler[MAX_YEMEKLER][MAX_LEN_a];
+float fiyatlar[MAX_YEMEKLER];
+int yemek_sayisi = 0;
+
+struct Musteri {
+    char id[10];
+    char ad[50];
+    char cinsiyet[10];
+    char email[100];
+    char telefon[20];
+};
+
+char musteri_adi[MAX_UZUNLUK];
+
+
+void aktifSiparisiGoster();
+void restoran_menu();
+void siparis_ekle();
+void yemekleri_diziye_ata();
+int sadece_sayi(char *str);
+int sadece_harf(char *str);
+int yemek_var_mi(const char *yemek_adi);
+void siparis_listele();
+
+int sadece_sayi(char *str) {
+    for (int i = 0; i < strlen(str); i++) {
+        if (str[i] < '0' || str[i] > '9') { // sayi mi degil mi kontrol eder.
+            return 0;
+        }
+    }
+}
+
+int sadece_harf(char *str) {
+    while (*str != '\0') {
+        if (!isalpha(*str) && *str != ' ') {//harf mi degil mi kontrol eder.
+            return 0;
+        }
+        str++;
+    }
+    return 1;
+}
+
+
+void yemekleri_diziye_ata() {
+    FILE *dosya_yemekler = fopen("yemekler.txt", "r");
+    if (dosya_yemekler == NULL) {
+        perror("yemekler.txt dosyasi acilamadi");
+        return;
+    }
+
+    char satir[MAX_LEN_a];
+    while (fgets(satir, sizeof(satir), dosya_yemekler) && yemek_sayisi < MAX_YEMEKLER) {
+        satir[strcspn(satir, "\n")] = 0;
+        
+        char *token = strtok(satir, " :: "); //satiri :: karakterine gore boler.
+        if (token != NULL) {
+            token = strtok(NULL, " :: "); 
+            if (token != NULL) {
+                strcpy(yemekler[yemek_sayisi], token);
+                token = strtok(NULL, " :: "); 
+                if (token != NULL) {
+                    fiyatlar[yemek_sayisi] = atof(token); //stringi float a cevirir.
+                    yemek_sayisi++;
+                }
+            }
+        }
+    }
+
+    fclose(dosya_yemekler);
+}
+
+
+int yemek_var_mi(const char *yemek_adi) {
+    for (int i = 0; i < yemek_sayisi; i++) {
+        if (strcmp(yemekler[i], yemek_adi) == 0) { //yemek adi var mi kontrol eder.
+            return i;
+        }
+    }
+    return -1;
+}
+
+void restoran_menu() {
+    FILE *dosya_yemekler = fopen("yemekler.txt", "r");
+    if (dosya_yemekler == NULL) {
+        perror("yemekler.txt dosyasi acilamadi");
+        return;
+    }
+
+    char satir[MAX_LEN_a];
+    while (fgets(satir, sizeof(satir), dosya_yemekler)) {
+        if (strstr(satir, "Mevcut Degil") == NULL) { //mevcut degil yazisi var mi kontrol eder.
+            printf("%s", satir);
+        }
+    }
+
+    fclose(dosya_yemekler);
+}
+
+void siparis_ekle() {
+
+    printf("Siparis ekleme ekrani\n");
+    
+    yemekleri_diziye_ata();
+    restoran_menu(); 
+
+
+    int gecerli_siparis = 0;
+    int gecerli_isim=0;
+    char siparis[MAX_LEN_a];
+    char kullanici_adi[30];
+
+    while (!gecerli_siparis || !gecerli_isim) {
+        printf("\nkullanici adi: ");
+        scanf(" %[^\n]", kullanici_adi);
+        gecerli_isim=sadece_harf(kullanici_adi);
+         if (!gecerli_isim) {
+            printf("İngilizce karakter disinda karakter kabul edilmez. Lutfen harf giriniz.\n");}
+        else {
+        
+        printf("Siparis adi: ");
+        scanf(" %[^\n]", siparis);
+        gecerli_siparis = sadece_harf(siparis);
+        
+        if (!gecerli_siparis) {
+            printf("İngilizce karakter disinda karakter kabul edilmez. Lutfen harf giriniz.\n");
+        } else {
+            int index = yemek_var_mi(siparis);
+            if (index == -1) {
+                printf("Bu yemek mevcut degil. Lutfen yemekler.txt dosyasindaki bir yemek adi giriniz.\n");
+                gecerli_siparis = 0;
+                gecerli_isim = 0;
+            } else {
+                gecerli_siparis = 1;
+                gecerli_isim = 1;
+                FILE *dosya_siparis = fopen("siparis.txt", "a");
+                if (dosya_siparis == NULL) {
+                    perror("siparis.txt dosyasi acilamadi");
+                    return;
+                }
+
+                int max_siparis_no = 0;
+                FILE *dosya_siparis_read = fopen("siparis.txt", "r");
+                if (dosya_siparis_read != NULL) {
+                    char satir[MAX_LEN_a];
+                    while (fgets(satir, sizeof(satir), dosya_siparis_read)) {
+                        int siparis_no;
+                        sscanf(satir, "%d ::", &siparis_no);
+                        if (siparis_no > max_siparis_no) {
+                            max_siparis_no = siparis_no;
+                        }
+                    }
+                    fclose(dosya_siparis_read);
+                }
+                fprintf(dosya_siparis, "%d :: %s :: %.2fTL:: %s\n", max_siparis_no + 1, siparis, fiyatlar[index], kullanici_adi); //siparis ekler.
+                printf("Siparis eklendi.\n");
+                fclose(dosya_siparis);
+                }
+            }
+        }
+
+    }
+}
+
+
+void flush_input_buffer() {
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF); //input bufferi temizler.
+}
+
+void siparis_listele() {
+    char kullanici_adi[MAX_LEN_a];
+
+    while (1) { //kullanici adi alir.
+        printf("Kullanici adi: ");
+        if (fgets(kullanici_adi, MAX_LEN_a, stdin) == NULL) {
+            fprintf(stderr, "Kullanici adini okurken hata oluştu.\n");
+            return;
+        }
+
+        kullanici_adi[strcspn(kullanici_adi, "\n")] = 0; //alinan kullanici adinin sonundaki newline karakterini siler.
+
+        if (strlen(kullanici_adi) > 0) {
+            break; // Kullanıcı adı geçerliyse döngüden çık
+        } else {
+            fprintf(stderr, "Kullanici adi bos olamaz.\n");
+        }
+    }
+
+    FILE *dosya_siparis = fopen("siparis.txt", "r");
+    if (dosya_siparis == NULL) {
+        perror("siparis.txt dosyasi acilamadi");
+        return;
+    }
+
+    char son_siparis[MAX_LEN_a] = ""; // Kullanıcının son siparişi
+    char satir[MAX_LEN_a];
+    char temp_satir[MAX_LEN_a];
+
+    while (fgets(satir, sizeof(satir), dosya_siparis)) {
+        strcpy(temp_satir, satir); // Satırın kopyasını al
+        char *token;
+        int siparis_no;
+        char yemek_adi[MAX_LEN_a];
+        char fiyat[MAX_LEN_a];
+        char siparis_veren[MAX_LEN_a];
+        char durum[MAX_LEN_a];
+
+        // Satırı " :: " ile bölerek tokenize ediyoruz
+        token = strtok(satir, " :: ");
+        if (token != NULL) siparis_no = atoi(token);
+
+        token = strtok(NULL, " :: ");
+        if (token != NULL) strcpy(yemek_adi, token);
+
+        token = strtok(NULL, " :: ");
+        if (token != NULL) strcpy(fiyat, token);
+
+        token = strtok(NULL, " :: ");
+        if (token != NULL) strcpy(siparis_veren, token);
+
+        token = strtok(NULL, " :: ");
+        if (token != NULL) strcpy(durum, token);
+
+        // Kullanıcı adı karşılaştırması ve son siparişi bulma
+        if (strcmp(siparis_veren, kullanici_adi) == 0) {
+            strcpy(son_siparis, temp_satir); // Kullanıcının son siparişini güncelle
+        }
+    }
+
+    // Dosyayı yeniden başa sar
+    fseek(dosya_siparis, 0, SEEK_SET);
+
+    // Son sipariş dışındaki diğer siparişleri yazdırma
+    while (fgets(satir, sizeof(satir), dosya_siparis)) {
+        strcpy(temp_satir, satir); // Satırın kopyasını al
+        char *token;
+        int siparis_no;
+        char yemek_adi[MAX_LEN_a];
+        char fiyat[MAX_LEN_a];
+        char siparis_veren[MAX_LEN_a];
+        char durum[MAX_LEN_a];
+
+        // Satırı " :: " ile bölerek tokenize ediyoruz
+        token = strtok(satir, " :: ");
+        if (token != NULL) siparis_no = atoi(token);
+
+        token = strtok(NULL, " :: ");
+        if (token != NULL) strcpy(yemek_adi, token);
+
+        token = strtok(NULL, " :: ");
+        if (token != NULL) strcpy(fiyat, token);
+
+        token = strtok(NULL, " :: ");
+        if (token != NULL) strcpy(siparis_veren, token);
+
+        token = strtok(NULL, " :: ");
+        if (token != NULL) strcpy(durum, token);
+
+        // Kullanıcı adı karşılaştırması ve son sipariş dışındaki diğer siparişleri yazdırma
+        if (strcmp(siparis_veren, kullanici_adi) == 0 && strcmp(temp_satir, son_siparis) != 0) {
+            printf("%d :: %s :: %s :: %s :: %s\n",
+                   siparis_no, yemek_adi, fiyat, siparis_veren, durum);
+        }
+    }
+
+    fclose(dosya_siparis);
+}
+
+
+void aktifSiparisiGoster() {
+    char musteriAdi[50];
+    char satir[MAKS_SATIR_UZUNLUGU];
+    char aktifSiparis[MAKS_SATIR_UZUNLUGU];
+    FILE *dosya = fopen(DOSYA_ADI, "r");
+
+    if (dosya == NULL) {
+        printf("Dosya acilamadi.\n");
+        return;
+    }
+
+    printf("Musteri adini giriniz: ");
+    scanf("%s", musteriAdi);
+
+    // Dosyayı sondan okuyarak müşterinin son siparişini bulma
+    while (fgets(satir, sizeof(satir), dosya)) {
+        if (strstr(satir, musteriAdi) != NULL && strstr(satir, "onay") != NULL) {
+            strcpy(aktifSiparis, satir);
+        }
+    }
+
+    fclose(dosya);
+
+    // Aktif siparişi terminalde gösterme
+    if (strlen(aktifSiparis) > 0) {
+        printf("Aktif Siparis: %s\n", aktifSiparis);
+    } else {
+        printf("Aktif siparis bulunamadi.\n");
+    }
+}
+
+
+#endif

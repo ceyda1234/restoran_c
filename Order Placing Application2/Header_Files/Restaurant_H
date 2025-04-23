@@ -1,0 +1,686 @@
+#ifndef RESTORAN_H
+#define RESTORAN_H
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <ctype.h>
+#include <errno.h>
+
+#define MAX_LEN 100
+#define MAX_YEMEKLER 100
+#define MAX_UZUNLUK 256
+
+struct Yemek { //yemek eklerken kullanilir
+    char adi[100];
+    char fiyat[10];
+    char hazirlanma_suresi[10];
+    char durum[20];
+};
+
+typedef struct {
+    char kullanici[MAX_LEN]; //kullani siparis verirken kullanilir
+    int siparis_sayisi;
+} KullaniciSiparis;
+
+typedef struct {
+    char yemek[MAX_LEN];
+    int onay_sayisi;
+} YemekMiktar;
+
+void en_cok_tuketilen_yemek();
+void en_cok_siparis_veren_kullanici();
+int tarihi_ayristir(const char *date_str);
+int tarihleri_bol(const char *tarih_str, struct tm *tarih);
+int sadecesayi(char *str);
+int sadeceharf(char *str);
+int yemek_sil();
+void yemek_ekle();
+void yeniden_numaralandir();
+void yemek_guncelle();
+void siparis_menu();
+void siparis_onayRed();
+void asci_ekle();
+int bugunun_tarihi(const char *satir, struct tm *bugun);
+int tarih_ayristir(const char *tarih_str, struct tm *tarih);
+int bugun_mu(const char *satir, struct tm *bugun);
+int gunluk_rapor();
+
+int sadecesayi(char *str) {
+    for (int i = 0; i < strlen(str); i++) {
+        if (str[i] < '0' || str[i] > '9') {
+            return 0;
+        }
+    }
+}
+
+int sadeceharf(char *str) {
+    while (*str != '\0') {
+        if (!isalpha(*str) && *str != ' ') {
+            return 0;
+        }
+        str++;
+    }
+    return 1;
+}
+void yemek_ekle() {
+        struct Yemek Yemek;
+        printf("Yemek ekleme ekrani\n");
+        int gecerli_yemek_adi = 0;
+        while (!gecerli_yemek_adi) {
+            printf("Yemek adi: ");
+            scanf(" %[^\n]", Yemek.adi);
+            gecerli_yemek_adi =sadeceharf(Yemek.adi);
+            if (!gecerli_yemek_adi) {
+                printf("ingilizce karakter disinda karakter kabul edilmez.Lütfen harf giriniz.\n");
+            }
+        }
+
+        float gecerli_yemek_fiyati = 0.0;
+        while (!gecerli_yemek_fiyati) {
+            printf("Yemek fiyati:");
+            scanf("%s",&Yemek.fiyat);
+
+            gecerli_yemek_fiyati = sadecesayi(Yemek.fiyat);
+            if (!gecerli_yemek_fiyati) {
+                printf("sayilar disinda karakterler kabul edilmez.Lutfen rakam giriniz.\n");
+            }
+        }
+
+            int gecerli_hazirlanma_suresi = 0;
+        while (!gecerli_hazirlanma_suresi) {
+            printf("\nHazirlanma suresi:");
+            scanf("%s",&Yemek.hazirlanma_suresi);
+
+            gecerli_hazirlanma_suresi = sadecesayi(Yemek.hazirlanma_suresi);
+            if (!gecerli_hazirlanma_suresi) {
+                printf("rakam disinda karakter kabul edimez.lütfen gecerli bir sayi giriniz.\n");
+            }
+        }
+            int gecerli_yemek_durumu = 0;
+            while (!gecerli_yemek_durumu) {
+                printf("yemek durumu(mevcut/degil): ");
+                scanf(" %[^\n]",&Yemek.durum);
+
+            gecerli_yemek_durumu =sadeceharf(Yemek.durum);
+            if (!gecerli_yemek_durumu) {
+                printf("ingilizce karakter disinda karakter kabul edilmez.Lütfen harf giriniz.\n");
+            }
+        }
+        // line numarisini bul
+        FILE *dosya = fopen("yemekler.txt", "r");   
+        int line_count = 0;
+        char c;
+
+        while ((c = fgetc(dosya)) != EOF) { //dosyayi sonuna kadar okur
+            if (c == '\n') {
+                line_count++;
+            }
+        }
+        fclose(dosya);
+
+        dosya = fopen("yemekler.txt", "a");
+
+        fprintf(dosya, "%d :: %s :: %s TL :: %sdk :: %s\n", line_count+1, Yemek.adi, Yemek.fiyat, Yemek.hazirlanma_suresi, Yemek.durum); // Modify the fprintf statement to use %d instead of %s for line_count
+        printf("Yemek eklendi.\n");
+        fclose(dosya);
+    }
+void yeniden_numaralandir() { //silinen ya da guncellenen listeyi tekrar numaralandir
+    FILE *dosya = fopen("yemekler.txt", "r");
+    if (dosya == NULL) {
+        printf("Hata: Dosya bulunamadi.\n");
+        return;
+    }
+
+    FILE *dosya2 = fopen("gecici_yemekler_listesi.txt", "w");
+    if (dosya2 == NULL) {
+        printf("Hata: Dosya olusturma hatasi.\n");
+        fclose(dosya);
+        return;
+    }
+
+    char line[100];
+    int sayici = 0;
+    while (fgets(line, sizeof(line), dosya)) {
+        sayici++;
+        if (strstr(line, "::") != NULL) { //yemekler.txt dosyasinda :: varsa
+            fprintf(dosya2, "%d :: %s", sayici, strchr(line, ':') + 3);
+        } else {
+            fprintf(dosya2, "%s", line);
+        }
+    }
+
+    fclose(dosya);
+    fclose(dosya2);
+
+    remove("yemekler.txt");
+    rename("gecici_yemekler_listesi.txt", "yemekler.txt");
+}
+
+int yemek_sil() {
+    char yemek_adi[100];
+    
+    printf("Silmek istediginiz yemegin adini giriniz: ");
+    scanf(" %[^\n]", yemek_adi);
+
+    FILE *dosya = fopen("yemekler.txt", "r");
+    if (dosya == NULL) {
+        printf("Dosya acma hatasi!\n");
+        return 0;
+    }
+
+
+    FILE *gecici_dosya = fopen("gecici_yemekler_listesi.txt", "w");
+    if (gecici_dosya == NULL) {
+        printf("Gecici dosya olusturma hatasi!\n");
+        fclose(dosya);
+        return 0;
+    }
+
+    char satir[256];
+    int silindi = 0;
+    while (fgets(satir, sizeof(satir), dosya) != NULL) {
+        if (strstr(satir, yemek_adi) == NULL) {
+            fputs(satir, gecici_dosya);
+        } else {
+            silindi = 1;
+        }
+    }
+    fclose(dosya);
+    fclose(gecici_dosya);
+
+    if (silindi) {
+        remove("yemekler.txt");
+        rename("gecici_yemekler_listesi.txt", "yemekler.txt");
+        printf("Yemek silindi.\n");
+    } else {
+        remove("gecici_yemekler_listesi.txt");
+        printf("Yemek bulunamadi. Gecerli yemek adi giriniz.\n");
+        return yemek_sil();
+    }
+    
+    yeniden_numaralandir();
+    return 1;
+}
+void yemek_guncelle() {
+    char guncelle[100];
+    printf("Guncellemek istediginiz yemegin adini giriniz: ");
+    scanf(" %[^\n]", guncelle);
+
+    FILE *dosya = fopen("yemekler.txt", "r");
+    if (dosya == NULL) {
+        printf("Dosya acma hatasi!\n");
+        return;
+    }
+
+    FILE *gecici_dosya = fopen("gecici_yemekler_listesi.txt", "w");
+    if (gecici_dosya == NULL) {
+        printf("Gecici dosya olusturma hatasi!\n");
+        fclose(dosya);
+        return;
+    }
+
+    char satir[256];
+    int guncellendi = 0;
+    while (fgets(satir, sizeof(satir), dosya) != NULL) {
+        char *token = strtok(satir, "::"); //yemekler.txt dosyasinda :: varsa
+        char numara[10], adi[100], fiyat[10], hazirlanma_suresi[10], durum[20];
+        
+        if (token != NULL) {
+            strcpy(numara, token);
+            token = strtok(NULL, "::");
+        }
+        if (token != NULL) {
+            strcpy(adi, token);
+            token = strtok(NULL, "::");
+        }
+        if (token != NULL) {
+            strcpy(fiyat, token);
+            token = strtok(NULL, "::");
+        }
+        if (token != NULL) {
+            strcpy(hazirlanma_suresi, token);
+            token = strtok(NULL, "::");
+        }
+        if (token != NULL) {
+            strcpy(durum, token);
+        }
+
+        char *end; //satir sonuna kadar okur
+
+        
+        char *adi_ptr = adi;
+        while(isspace((unsigned char)*adi_ptr)) adi_ptr++; //bosluklari atlar .isspace() fonksiyonu karakterin bosluk olup olmadigini kontrol et
+        char *fiyat_ptr = fiyat;
+        while(isspace((unsigned char)*fiyat_ptr)) fiyat_ptr++;
+        char *hazirlanma_suresi_ptr = hazirlanma_suresi;
+        while(isspace((unsigned char)*hazirlanma_suresi_ptr)) hazirlanma_suresi_ptr++;
+        char *durum_ptr = durum;
+        while(isspace((unsigned char)*durum_ptr)) durum_ptr++;
+
+        end = adi_ptr + strlen(adi_ptr) - 1; //satir sonuna kadar okur
+        while(end > adi_ptr && isspace((unsigned char)*end)) end--;
+        end[1] = '\0';
+
+        end = fiyat_ptr + strlen(fiyat_ptr) - 1;
+        while(end > fiyat_ptr && isspace((unsigned char)*end)) end--;
+        end[1] = '\0';
+
+        end = hazirlanma_suresi_ptr + strlen(hazirlanma_suresi_ptr) - 1;
+        while(end > hazirlanma_suresi_ptr && isspace((unsigned char)*end)) end--;
+        end[1] = '\0';
+
+        end = durum_ptr + strlen(durum_ptr) - 1;
+        while(end > durum_ptr && isspace((unsigned char)*end)) end--;
+        end[1] = '\0';
+
+        if (strcmp(adi_ptr, guncelle) != 0) {
+            fprintf(gecici_dosya, "%s :: %s :: %s :: %s :: %s\n", numara, adi_ptr, fiyat_ptr, hazirlanma_suresi_ptr, durum_ptr);
+        } else {
+            struct Yemek Yemek;
+            printf("Yemek ekleme ekrani\n");
+
+            printf("Yeni Yemek adi (ayni kalacak): %s\n", adi_ptr);
+            strcpy(Yemek.adi, adi_ptr);
+
+            //yemek fiyati guncelleme
+            int gecerli_yemek_fiyati = 0;
+            while (!gecerli_yemek_fiyati) {
+                printf("Yeni Yemek fiyati: ");
+                scanf("%s", Yemek.fiyat);
+                gecerli_yemek_fiyati = sadecesayi(Yemek.fiyat);
+                if (!gecerli_yemek_fiyati) {
+                    printf("Sayilar disinda karakterler kabul edilmez. Lutfen rakam giriniz.\n");
+                }
+            }
+
+            //hazirlanma süresi guncelleme
+            int gecerli_hazirlanma_suresi = 0;
+            while (!gecerli_hazirlanma_suresi) {
+                printf("Yeni Hazirlanma suresi: ");
+                scanf("%s", Yemek.hazirlanma_suresi);
+                gecerli_hazirlanma_suresi = sadecesayi(Yemek.hazirlanma_suresi);
+                if (!gecerli_hazirlanma_suresi) {
+                    printf("Rakam disinda karakter kabul edilmez. Lutfen gecerli bir sayi giriniz.\n");
+                }
+            }
+
+            // yemek durumu guncelleme
+            int gecerli_yemek_durumu = 0;
+            while (!gecerli_yemek_durumu) {
+                printf("Yeni Yemek durumu (mevcut/degil): ");
+                scanf(" %[^\n]", Yemek.durum);
+                gecerli_yemek_durumu = sadeceharf(Yemek.durum);
+                if (!gecerli_yemek_durumu) {
+                    printf("Ingilizce karakter disinda karakter kabul edilmez. Lutfen harf giriniz.\n");
+                }
+            }
+
+            //güncellenmis veriyi dosyaya yaz
+            fprintf(gecici_dosya, "%s :: %s :: %sTL :: %sdk :: %s\n", numara, Yemek.adi, Yemek.fiyat, Yemek.hazirlanma_suresi, Yemek.durum);
+            guncellendi = 1;
+        }
+    }
+
+    fclose(dosya);
+    fclose(gecici_dosya);
+
+    if (guncellendi) {
+        remove("yemekler.txt");
+        rename("gecici_yemekler_listesi.txt", "yemekler.txt");
+        printf("Yemek guncellendi.\n");
+    } else {
+        remove("gecici_yemekler_listesi.txt");
+        printf("Yemek bulunamadi. Gecerli yemek adi giriniz.\n");
+        yemek_guncelle();
+    }
+}
+
+void siparis_menu() {  //onay-red icin
+    FILE *dosya_siparis = fopen("siparis.txt", "r");
+    if (dosya_siparis == NULL) {
+        perror("siparis.txt dosyasi acilamadi");
+        return;
+    }
+
+    char satir[MAX_LEN];
+    while (fgets(satir, sizeof(satir), dosya_siparis)) {
+        
+            printf("%s", satir);
+        
+    }
+
+    fclose(dosya_siparis);
+}
+
+void siparis_onayRed() {
+    siparis_menu();
+    int siparis_no;
+    printf("Onaylamak veya reddetmek istediginiz siparisin numarasini giriniz: ");
+    scanf("%d", &siparis_no);
+
+    FILE *dosya = fopen("siparis.txt", "r");
+    if (dosya == NULL) {
+        printf("Dosya acma hatasi!\n");
+        return;
+    }
+
+    FILE *gecici_dosya = fopen("gecici_siparisler_listesi.txt", "w");
+    if (gecici_dosya == NULL) {
+        printf("Gecici dosya olusturma hatasi!\n");
+        fclose(dosya);
+        return;
+    }
+
+    char onay_durumu[10];
+    printf("Onay durumu (onay/red): ");
+    scanf("%s", onay_durumu);
+
+    char line[100];
+    int anlik_siparis_no;
+    int bulundu = 0;
+    while (fgets(line, sizeof(line), dosya)) {
+        if (sscanf(line, "%d", &anlik_siparis_no) == 1 && anlik_siparis_no == siparis_no) {
+            line[strcspn(line, "\n")] = 0; //satir sonundaki newline karakterini sil
+            fprintf(gecici_dosya, "%s :: %s\n", line, onay_durumu);
+            bulundu = 1;
+        } else {
+            fprintf(gecici_dosya, "%s", line);
+        }
+    }
+
+    if (!bulundu) {
+        printf("Belirtilen numarada bir siparis bulunamadi.\n");
+    }
+
+    fclose(dosya);
+    fclose(gecici_dosya);
+    remove("siparis.txt");
+    rename("gecici_siparisler_listesi.txt", "siparis.txt");
+    if (bulundu) {
+        printf("Siparis durumu guncellendi.\n");
+    }
+}
+
+void asci_ekle() {
+    int asci_sayisi;
+    printf("Eklemek istediginiz asci sayisini giriniz: ");
+    scanf("%d", &asci_sayisi);
+
+    FILE *asci_dosya = fopen("asci.txt", "a");
+    if (asci_dosya == NULL) {
+        printf("asci.txt dosyasini acma hatasi!\n");
+        return;
+    }
+
+    for (int i = 1; i <= asci_sayisi; i++) { //asci sayisini belirle
+        fprintf(asci_dosya, "A%d\n", i);
+    }
+
+    fclose(asci_dosya);
+    printf("Asci bilgileri eklendi.\n");
+}
+
+
+int tarihleri_bol(const char *tarih_str, struct tm *tarih) {
+    memset(tarih, 0, sizeof(struct tm)); //tarih yapisini sifirla
+    return sscanf(tarih_str, "%4d.%2d.%2d %2d:%2d:%2d",
+                  &tarih->tm_year, &tarih->tm_mon, &tarih->tm_mday,
+                  &tarih->tm_hour, &tarih->tm_min, &tarih->tm_sec) == 6;
+}
+
+int bugunun_tarihi(const char *satir, struct tm *bugun) {
+    const char *tarih_pos = strstr(satir, "Siparis Zamani: ");
+    if (tarih_pos != NULL) {
+        char siparis_tarih_str[20];
+        strncpy(siparis_tarih_str, tarih_pos + 15, 19); //tarih ve saat kismini cikar
+        siparis_tarih_str[19] = '\0'; //son karakteri null yap
+
+        struct tm siparis_tarihi;
+        if (tarihleri_bol(siparis_tarih_str, &siparis_tarihi)) {
+            siparis_tarihi.tm_year -= 1900; //yili ayarla
+            siparis_tarihi.tm_mon -= 1; //ayi ayarla
+            return (siparis_tarihi.tm_year == bugun->tm_year &&
+                    siparis_tarihi.tm_mon == bugun->tm_mon &&
+                    siparis_tarihi.tm_mday == bugun->tm_mday);
+        }
+    }
+    return 0;
+}
+
+
+int tarihi_ayristir(const char *date_str) {
+    struct tm tm = {0};
+    if (sscanf(date_str, "%4d.%2d.%2d", &tm.tm_year, &tm.tm_mon, &tm.tm_mday) != 3) {
+        return -1;
+    }
+    tm.tm_year -= 1900; //yil 1990dan itibaren
+    tm.tm_mon -= 1; //ay 0dan itibaren
+    return (int)mktime(&tm);
+}
+
+
+void en_cok_siparis_veren_kullanici() {
+    FILE *siparis_dosyasi = fopen("siparis.txt", "r");
+    if (siparis_dosyasi == NULL) {
+        perror("siparis.txt dosyasi acilamadi");
+        return;
+    }
+
+    KullaniciSiparis *kullanicilar = NULL; //siparis veren kullanicilari tut
+    int toplam_kullanici_sayisi = 0;
+
+    char satir[MAX_LEN];
+
+    while (fgets(satir, sizeof(satir), siparis_dosyasi)) {
+        char *token;
+        char kullanici[MAX_LEN];
+        char durum[MAX_LEN];
+        
+        //ID kismini geç
+        token = strtok(satir, " ::");
+        
+        //yemek ismini geçe
+        token = strtok(NULL, " ::");
+        
+        // Fiyati geçelim
+        token = strtok(NULL, " ::");
+        
+        //kullanici adini al
+        token = strtok(NULL, " ::");
+        if (token != NULL) {
+            strcpy(kullanici, token);
+        }
+
+        //durumu al
+        token = strtok(NULL, " ::");
+        if (token != NULL) {
+            strcpy(durum, token);
+        }
+
+        if (strcmp(durum, "onay") == 0) {
+            int i;
+            for (i = 0; i < toplam_kullanici_sayisi; i++) {
+                if (strcmp(kullanicilar[i].kullanici, kullanici) == 0) {
+                    kullanicilar[i].siparis_sayisi++;
+                    break;
+                }
+            }
+
+            if (i == toplam_kullanici_sayisi) {
+                KullaniciSiparis *temp = realloc(kullanicilar, (toplam_kullanici_sayisi + 1) * sizeof(KullaniciSiparis)); //kullanicilari yeniden boyutlandir
+                if (temp == NULL) {
+                    perror("Bellek tahsisi basarisiz oldu"); //hata measji ver
+                    free(kullanicilar); //bellek tahsisini serbest birak
+                    fclose(siparis_dosyasi);
+                    return;
+                }
+                kullanicilar = temp;
+                strcpy(kullanicilar[toplam_kullanici_sayisi].kullanici, kullanici); //kullanici adini kopyala
+                kullanicilar[toplam_kullanici_sayisi].siparis_sayisi = 1;
+                toplam_kullanici_sayisi++;
+            }
+        }
+    }
+
+    fclose(siparis_dosyasi);
+
+    if (toplam_kullanici_sayisi == 0) {
+        printf("Herhangi bir onaylanan siparis bulunamadi.\n");
+        return;
+    }
+
+    int en_cok_siparis_veren_index = 0;
+    for (int i = 1; i < toplam_kullanici_sayisi; i++) {
+        if (kullanicilar[i].siparis_sayisi > kullanicilar[en_cok_siparis_veren_index].siparis_sayisi) {
+            en_cok_siparis_veren_index = i;
+        }
+    }
+
+    printf("En cok siparis veren kullanici: %s\nSiparis sayisi: %d\n", kullanicilar[en_cok_siparis_veren_index].kullanici, kullanicilar[en_cok_siparis_veren_index].siparis_sayisi);
+
+    free(kullanicilar);
+}
+
+void en_cok_tuketilen_yemek() {
+    FILE *siparis_dosyasi = fopen("siparis.txt", "r");
+    if (siparis_dosyasi == NULL) {
+        perror("siparis.txt dosyasi acilamadi");
+        return;
+    }
+
+    YemekMiktar *yemekler = NULL;
+    int toplam_yemek_sayisi = 0;
+
+    char satir[MAX_LEN];
+
+    while (fgets(satir, sizeof(satir), siparis_dosyasi)) {
+        char *token;
+        char yemek[MAX_LEN];
+        char durum[MAX_LEN];
+        
+        //ID kismini geç
+        token = strtok(satir, " ::");
+        
+        //yemek ismini al
+        token = strtok(NULL, " ::");
+        if (token != NULL) {
+            strcpy(yemek, token);
+        }
+
+        //diger kisimlari geç ve durumu al
+        for (int i = 0; i < 3; i++) {
+            token = strtok(NULL, " ::");
+        }
+
+        if (token != NULL) {
+            strcpy(durum, token);
+        }
+
+        if (strcmp(durum, "onay") == 0) {
+            int i;
+            for (i = 0; i < toplam_yemek_sayisi; i++) {
+                if (strcmp(yemekler[i].yemek, yemek) == 0) {
+                    yemekler[i].onay_sayisi++;
+                    break;
+                }
+            }
+
+            if (i == toplam_yemek_sayisi) {
+                YemekMiktar *temp = realloc(yemekler, (toplam_yemek_sayisi + 1) * sizeof(YemekMiktar)); //yemekleri yeniden boyutlandir
+                if (temp == NULL) {
+                    perror("Bellek tahsisi basarisiz oldu");
+                    free(yemekler);
+                    fclose(siparis_dosyasi);
+                    return;
+                }
+                yemekler = temp;
+                strcpy(yemekler[toplam_yemek_sayisi].yemek, yemek); 
+                yemekler[toplam_yemek_sayisi].onay_sayisi = 1;
+                toplam_yemek_sayisi++;
+            }
+        }
+    }
+
+    fclose(siparis_dosyasi);
+
+    if (toplam_yemek_sayisi == 0) {
+        printf("Herhangi bir onaylanan siparis bulunamadi.\n");
+        return;
+    }
+
+    int en_cok_tuketilen_index = 0;
+    for (int i = 1; i < toplam_yemek_sayisi; i++) {
+        if (yemekler[i].onay_sayisi > yemekler[en_cok_tuketilen_index].onay_sayisi) {
+            en_cok_tuketilen_index = i;
+        }
+    }
+
+    printf("En cok tuketilen yemek: %s\nOnay sayisi: %d\n", yemekler[en_cok_tuketilen_index].yemek, yemekler[en_cok_tuketilen_index].onay_sayisi);
+
+    free(yemekler);
+}
+
+int tarih_ayristir(const char *tarih_str, struct tm *tarih) {
+    memset(tarih, 0, sizeof(struct tm));
+    return sscanf(tarih_str, "%4d.%2d.%2d %2d:%2d:%2d",
+                  &tarih->tm_year, &tarih->tm_mon, &tarih->tm_mday,
+                  &tarih->tm_hour, &tarih->tm_min, &tarih->tm_sec) == 6;
+}
+
+int bugun_mu(const char *satir, struct tm *bugun) {
+    const char *tarih_yeri = strstr(satir, "Siparis Zamani- ");
+    if (tarih_yeri != NULL) {
+        char siparis_tarihi_str[20 + 1]; //tatih ve saat icin yeterli
+        strncpy(siparis_tarihi_str, tarih_yeri + 15, 19); //tarih ve saat kismini çikar
+        siparis_tarihi_str[19] = '\0'; //son karakteri null yap
+
+        struct tm siparis_tarihi;
+        if (tarih_ayristir(siparis_tarihi_str, &siparis_tarihi)) {
+            siparis_tarihi.tm_year -= 1900; //yili ayarla
+            siparis_tarihi.tm_mon -= 1; //ayi ayarla
+            return (siparis_tarihi.tm_year == bugun->tm_year &&
+                    siparis_tarihi.tm_mon == bugun->tm_mon &&
+                    siparis_tarihi.tm_mday == bugun->tm_mday);
+        }
+    }
+    return 0;
+}
+
+int gunluk_rapor() {
+    time_t t = time(NULL);
+    struct tm *simdi = localtime(&t);
+
+    char dosya_adi[40];
+    sprintf(dosya_adi, "rapor_%04d-%02d-%02d.txt", simdi->tm_year + 1900, simdi->tm_mon + 1, simdi->tm_mday); //dosya adini olustur
+
+    FILE *dosya_siparisler = fopen("siparis.txt", "r");
+    if (dosya_siparisler == NULL) {
+        perror("siparis.txt dosyasi acilamadi");
+        return 1;
+    }
+
+    FILE *dosya_rapor = fopen(dosya_adi, "w");
+    if (dosya_rapor == NULL) {
+        perror("Rapor dosyasi olusturulamadi");
+        fclose(dosya_siparisler);
+        return 1;
+    }
+
+    char satir[MAX_UZUNLUK];
+
+    while (fgets(satir, sizeof(satir), dosya_siparisler)) {
+        if (bugun_mu(satir, simdi)) {
+            fprintf(dosya_rapor, "%s", satir);
+        }
+    }
+
+    fclose(dosya_siparisler);
+    fclose(dosya_rapor);
+
+    printf("Gunluk rapor olusturuldu: %s\n", dosya_adi);
+
+    return 0;
+}
+#endif // RESTORAN_H
